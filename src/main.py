@@ -42,6 +42,28 @@ def pick_write_tool(tools):
                   + ", ".join(sorted(names))[:300])
 
 
+def describe(tool):
+    """Argument shape of a tool, in a form that survives a JSON dump.
+
+    The SDK returns pydantic objects, and reading the attribute directly put a null in the
+    dataset: the value existed but did not serialize. Without the shape there is no way to
+    build a call, so this is the one thing a dry run has to get right.
+    """
+    for attr in ("model_dump", "dict"):
+        fn = getattr(tool, attr, None)
+        if callable(fn):
+            try:
+                return fn(mode="json") if attr == "model_dump" else fn()
+            except TypeError:
+                try:
+                    return fn()
+                except Exception:
+                    pass
+            except Exception:
+                pass
+    return {"name": getattr(tool, "name", None), "note": "shape unavailable"}
+
+
 def rows_from(items, table):
     """Reduce cards to rows. We do not carry every field we scraped: the destination table
     has its own schema, and pushing our full field set into it hits unknown columns."""
@@ -122,7 +144,7 @@ async def main():
                         await Actor.push_data({"delivered": 0, "status": "dry_run",
                                                "tool": tool.name,
                                                "wouldWrite": len(payload["rows"]),
-                                               "toolArguments": getattr(tool, "inputSchema", None),
+                                               "toolArguments": describe(tool),
                                                "toolsAvailable": [t.name for t in tools]})
                         return
 
