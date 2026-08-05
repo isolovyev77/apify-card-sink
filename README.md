@@ -28,6 +28,19 @@ Start with `dryRun: true`. The dataset then contains `toolsAvailable` and the ar
 of the tool that would be used, which is the fastest way to see what your service actually
 offers.
 
+## Confirmed run
+
+One card in, one Notion page out, through a connector authorized on the Apify side:
+
+```json
+{
+  "delivered": 1,
+  "status": "ok",
+  "tool": "notion-create-pages",
+  "argumentShape": "notion-style pages"
+}
+```
+
 ## Notes from building it
 
 - `streamable_http_client` yields a different number of streams across MCP SDK versions. The
@@ -37,6 +50,13 @@ offers.
   in another. Matching on the bare word `create` also catches `create-attachment`, which is not
   where cards belong.
 - Every refusal is written to the dataset. The caller sees the dataset, never the log.
+- There is no universal write call. Notion wants pages with a title property and a Markdown
+  body, a database wants rows, a chat wants a channel and text. The Actor reads the argument
+  schema the service published and shapes the call to match, rather than guessing from the
+  tool name.
+- `resourceType: "mcpConnector"` patterns are matched against real tool names. `create_*`
+  never matches `notion-create-pages`, and a pattern that misses leaves the user with an
+  empty connector picker.
 
 ## Running it locally
 
