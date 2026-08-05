@@ -1,0 +1,52 @@
+{
+    "title": "Card sink input",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "items": {
+            "title": "Cards to deliver",
+            "type": "array",
+            "description": "Product card records passed by value. Chain this after a scraper Actor: a run cannot read another run's dataset with standard permissions.",
+            "editor": "json",
+            "prefill": [
+                {
+                    "platform": "regard.ru",
+                    "title": "Lenovo IdeaPad Slim 3 15ABR8",
+                    "url": "https://www.regard.ru/product/777587/",
+                    "price": 44990,
+                    "specCount": 24,
+                    "imageCount": 6,
+                    "scrapedAt": "2026-08-06T09:00:00Z"
+                }
+            ]
+        },
+        "outputConnector": {
+            "title": "Destination",
+            "type": "string",
+            "description": "Where to write the cards. Pick a connector you have authorized: a Notion workspace, a Supabase project, a Slack channel. Your credentials stay on the Apify side and never reach this Actor.",
+            "resourceType": "mcpConnector",
+            "editor": "resourcePicker",
+            "mcpServers": [
+                {
+                    "url": "*"
+                }
+            ]
+        },
+        "targetTable": {
+            "title": "Target table or collection",
+            "type": "string",
+            "description": "Name of the table, database or channel to write into. Ignored by services that do not need it.",
+            "editor": "textfield",
+            "default": "product_cards"
+        },
+        "dryRun": {
+            "title": "Dry run",
+            "type": "boolean",
+            "description": "Connect, list the tools your service exposes, report which one would be used, and write nothing. Use this the first time you attach a connector.",
+            "default": false
+        }
+    },
+    "required": [
+        "items"
+    ]
+}
