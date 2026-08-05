@@ -23,7 +23,7 @@
         "outputConnector": {
             "title": "Destination",
             "type": "string",
-            "description": "Where to write the cards. Pick a connector you have authorized: a Notion workspace, a Supabase project, a Slack channel. Your credentials stay on the Apify side and never reach this Actor.",
+            "description": "Where to write the cards. Pick a connector you have authorized: a Supabase project, a Notion database, a Slack channel. Your credentials stay on the Apify side and never reach this Actor.",
             "resourceType": "mcpConnector",
             "editor": "resourcePicker",
             "mcpServers": [

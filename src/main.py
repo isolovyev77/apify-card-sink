@@ -64,6 +64,54 @@ def describe(tool):
     return {"name": getattr(tool, "name", None), "note": "shape unavailable"}
 
 
+def schema_of(tool):
+    """Argument schema of a tool, whatever the SDK calls the field this week."""
+    shape = describe(tool)
+    return (shape.get("input_schema") or shape.get("inputSchema") or {}).get("properties") or {}
+
+
+def as_markdown(card):
+    """One card as a Notion page body. Notion takes Markdown, not our field names."""
+    lines = ["**Platform:** %s" % (card.get("platform") or "unknown")]
+    if card.get("price"):
+        lines.append("**Price:** %s" % card["price"])
+    if card.get("spec_count"):
+        lines.append("**Specifications captured:** %s" % card["spec_count"])
+    if card.get("image_count"):
+        lines.append("**Images:** %s" % card["image_count"])
+    if card.get("url"):
+        lines.append("")
+        lines.append("[Open the product page](%s)" % card["url"])
+    if card.get("scraped_at"):
+        lines.append("")
+        lines.append("_Scraped at %s_" % card["scraped_at"])
+    return "\n".join(lines)
+
+
+def build_arguments(tool, payload):
+    """Shape the call for the tool we picked.
+
+    There is no universal write call. Notion wants pages with a title property and Markdown
+    body, a database wants rows, a chat wants a channel and text. Rather than guess from the
+    tool name, read the argument schema the service published and match our data to it.
+    Returns (arguments, note) so an unfamiliar shape is reported instead of silently guessed.
+    """
+    props = schema_of(tool)
+    if "pages" in props:
+        pages = [{"properties": {"title": c.get("title") or "Untitled product card"},
+                  "content": as_markdown(c)} for c in payload["rows"]]
+        # parent is optional: without it the pages land as private workspace-level pages,
+        # which is what you want the first time, before you decide where they belong
+        return {"pages": pages}, "notion-style pages"
+    for key in ("rows", "records", "values"):
+        if key in props:
+            return {key: payload["rows"], "table": payload["table"]}, "table rows"
+    if "text" in props or "message" in props:
+        body = "\n\n".join("%s - %s" % (c.get("title"), c.get("url")) for c in payload["rows"])
+        return {"text": body, "channel": payload["table"]}, "chat message"
+    return payload, "unrecognised argument shape, sending our own"
+
+
 def rows_from(items, table):
     """Reduce cards to rows. We do not carry every field we scraped: the destination table
     has its own schema, and pushing our full field set into it hits unknown columns."""
@@ -144,12 +192,15 @@ async def main():
                         await Actor.push_data({"delivered": 0, "status": "dry_run",
                                                "tool": tool.name,
                                                "wouldWrite": len(payload["rows"]),
+                                               "argumentShape": build_arguments(tool, payload)[1],
                                                "toolArguments": describe(tool),
                                                "toolsAvailable": [t.name for t in tools]})
                         return
 
+                    arguments, shape_note = build_arguments(tool, payload)
+                    Actor.log.info("calling '%s' with %s" % (tool.name, shape_note))
                     try:
-                        result = await session.call_tool(tool.name, arguments=payload)
+                        result = await session.call_tool(tool.name, arguments=arguments)
                     except Exception as exc:
                         detail = "%s: %s" % (type(exc).__name__, str(exc)[:200])
                         Actor.log.warning("write through '%s' failed: %s" % (tool.name, detail))
@@ -163,6 +214,7 @@ async def main():
                     Actor.log.info("written through '%s': %s" % (tool.name, text[:200]))
                     await Actor.push_data({"delivered": len(payload["rows"]),
                                            "status": "ok", "tool": tool.name,
+                                           "argumentShape": shape_note,
                                            "response": text[:500]})
 
 
